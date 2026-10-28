@@ -3,10 +3,12 @@ import {
   definePluginApp,
   experimental_ThreadStatusGlyph as ThreadStatusGlyph,
   experimental_useSidebarThreads as useSidebarThreads,
+  useBbNavigate,
   type PluginSidebarThread,
 } from "@get-bb/plugin-sdk/app";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { dayLabel, groupThreadsByDay, nextLocalMidnight } from "./activity";
+import { mountHeaderActivity } from "./header-activity";
 import "./app.css";
 
 type FeedItem =
@@ -128,7 +130,24 @@ export function ActivityPanel() {
   );
 }
 
+function HeaderActivityShortcut() {
+  const navigate = useBbNavigate();
+  useEffect(() => {
+    const controller = new AbortController();
+    const dispose = mountHeaderActivity(document, controller.signal, () => navigate.toPluginPanel("activity"));
+    return () => {
+      controller.abort();
+      dispose();
+    };
+  }, [navigate]);
+  return null;
+}
+
 export default definePluginApp((app) => {
+  app.slots.experimental_appOverlay({
+    id: "header-activity",
+    component: HeaderActivityShortcut,
+  });
   app.slots.navPanel({
     id: "activity",
     title: "Активность",
