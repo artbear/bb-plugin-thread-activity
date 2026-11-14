@@ -1,14 +1,23 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   definePluginApp,
   experimental_ThreadStatusGlyph as ThreadStatusGlyph,
   experimental_useSidebarThreads as useSidebarThreads,
   useBbNavigate,
+  useRpc,
   type PluginSidebarThread,
 } from "@get-bb/plugin-sdk/app";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { dayLabel, groupThreadsByDay, nextLocalMidnight } from "./activity";
+import {
+  DEFAULT_FEED_FILTER,
+  FEED_FILTERS,
+  isFeedFilterId,
+  selectThreadsForFeed,
+  type FeedFilterId,
+} from "./feed-filter";
 import { mountHeaderActivity } from "./header-activity";
+import type { rpcContract } from "./server";
 import "./app.css";
 
 type FeedItem =
@@ -74,19 +83,44 @@ const ThreadRow = memo(function ThreadRow({
 
 export function ActivityPanel() {
   const { status, threads, projects } = useSidebarThreads();
+  const rpc = useRpc<typeof rpcContract>();
   const now = useCalendarDate();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [filter, setFilter] = useState<FeedFilterId>(DEFAULT_FEED_FILTER);
+  const [filterReady, setFilterReady] = useState(false);
+  const filterTouched = useRef(false);
   const projectNames = useMemo(
     () => new Map(projects.map((project) => [project.id, project.name])),
     [projects],
   );
-  const items = useMemo<FeedItem[]>(
-    () => groupThreadsByDay(threads).flatMap((day) => [
+  useEffect(() => {
+    let active = true;
+    void rpc.call("getFeedFilter").then((result) => {
+      if (!active || filterTouched.current) return;
+      setFilter(result.filter);
+      setFilterReady(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [rpc]);
+  const items = useMemo<FeedItem[]>(() => {
+    if (!filterReady) return [];
+    return groupThreadsByDay(selectThreadsForFeed(threads, filter)).flatMap((day) => [
       { kind: "day" as const, key: `day:${day.key}`, date: day.date, count: day.threads.length },
       ...day.threads.map((thread) => ({ kind: "thread" as const, key: thread.id, thread })),
-    ]),
-    [threads],
-  );
+    ]);
+  }, [threads, filter, filterReady]);
+
+  function onFilterChange(event: ChangeEvent<HTMLSelectElement>) {
+    const next = event.target.value;
+    if (!isFeedFilterId(next)) return;
+    const previous = filter;
+    filterTouched.current = true;
+    setFilter(next);
+    setFilterReady(true);
+    void rpc.call("setFeedFilter", { filter: next }).catch(() => setFilter(previous));
+  }
   const virtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => scrollRef.current,
@@ -100,9 +134,17 @@ export function ActivityPanel() {
       <p className="ta-description">
         Все проекты и машины · Последняя активность сверху
       </p>
+      <label className="ta-filter">
+        Фильтр
+        <select aria-label="Фильтр" value={filter} onChange={onFilterChange}>
+          {FEED_FILTERS.map((option) => (
+            <option key={option.id} value={option.id}>{option.label}</option>
+          ))}
+        </select>
+      </label>
       {status === "loading" && <p className="ta-message" role="status">Загрузка тредов…</p>}
       {status === "error" && <p className="ta-message" role="alert">Не удалось загрузить треды. Проверьте подключение к BB.</p>}
-      {status === "ready" && items.length === 0 && <p className="ta-message">Нет активных тредов.</p>}
+      {status === "ready" && filterReady && items.length === 0 && <p className="ta-message">Нет активных тредов.</p>}
       <div className="ta-scroll" ref={scrollRef} aria-label="Треды по дням">
         <div className="ta-list" style={{ height: virtualizer.getTotalSize() }}>
           {virtualizer.getVirtualItems().map((virtualItem) => {

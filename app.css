@@ -7,10 +7,30 @@
 }
 .ta-description {
   margin: 0;
-  padding: 16px 20px;
+  padding: 16px 20px 8px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.ta-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0 20px 12px;
   color: var(--muted-foreground);
   font-size: 13px;
   border-bottom: 1px solid var(--border);
+}
+.ta-filter select {
+  flex: 1;
+  min-width: 0;
+  max-width: 420px;
+  font: inherit;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
 }
 .ta-message { padding: 16px 20px; margin: 0; }
 .ta-scroll { overflow: auto; flex: 1; min-height: 0; }
