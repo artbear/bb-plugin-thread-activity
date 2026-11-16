@@ -50,7 +50,7 @@ describe("activity panel", () => {
 
   it("shows the global order and preserves native thread links", async () => {
     const view = renderSlot(registration, { subPath: "" }, {
-      rpc: feedRpc({ filter: "all-without-children" }),
+      rpc: feedRpc({ filter: "all-parents" }),
       sidebarThreads: {
         threads: [
           thread("older-pinned", "2026-10-22T12:00:00", { isPinned: true, status: "active", isUnread: true }),
@@ -85,11 +85,12 @@ describe("activity panel", () => {
       FEED_FILTERS.map((filter) => filter.label),
     );
     expect(select.options[0]?.textContent).toBe("все");
-    expect(select.value).toBe("unread-without-children");
+    expect(select.value).toBe("unread-parents");
     expect(select.value).not.toBe(select.options[0]?.value);
+    expect(view.getAllByRole("option").map((option) => option.textContent)).not.toContain("все с дочерними");
     expect((await view.findAllByRole("link")).map((link) => link.getAttribute("href"))).toEqual([
       "/projects/project/threads/unread-leaf",
-      "/projects/project/threads/unread-child",
+      "/projects/project/threads/unread-parent",
     ]);
 
     fireEvent.change(select, { target: { value: "all" } });
@@ -107,15 +108,10 @@ describe("activity panel", () => {
       "/projects/project/threads/unread-parent",
       "/projects/project/threads/unread-child",
     ]);
-    fireEvent.change(select, { target: { value: "all-without-children" } });
+    fireEvent.change(select, { target: { value: "all-parents" } });
     expect(view.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       "/projects/project/threads/unread-leaf",
       "/projects/project/threads/read-leaf",
-      "/projects/project/threads/unread-child",
-      "/projects/project/threads/read-child",
-    ]);
-    fireEvent.change(select, { target: { value: "all-with-children" } });
-    expect(view.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       "/projects/project/threads/unread-parent",
       "/projects/project/threads/read-parent",
     ]);
@@ -123,8 +119,10 @@ describe("activity panel", () => {
     view.lifecycle.unmount();
     const reopened = renderSlot(registration, { subPath: "" }, { rpc, sidebarThreads: { threads } });
     await act(async () => { await Promise.resolve(); });
-    expect((reopened.getByLabelText("Фильтр") as HTMLSelectElement).value).toBe("all-with-children");
+    expect((reopened.getByLabelText("Фильтр") as HTMLSelectElement).value).toBe("all-parents");
     expect(reopened.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      "/projects/project/threads/unread-leaf",
+      "/projects/project/threads/read-leaf",
       "/projects/project/threads/unread-parent",
       "/projects/project/threads/read-parent",
     ]);

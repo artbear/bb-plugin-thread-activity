@@ -1,14 +1,13 @@
 export const FEED_FILTERS = [
   { id: "all", label: "все" },
-  { id: "unread-without-children", label: "непрочитанные и без дочерних тредов" },
+  { id: "unread-parents", label: "непрочитанные треды-родители" },
   { id: "all-unread", label: "все непрочитанные" },
-  { id: "all-without-children", label: "все без дочерних" },
-  { id: "all-with-children", label: "все с дочерними" },
+  { id: "all-parents", label: "все родители" },
 ] as const;
 
 export type FeedFilterId = (typeof FEED_FILTERS)[number]["id"];
 
-export const DEFAULT_FEED_FILTER: FeedFilterId = "unread-without-children";
+export const DEFAULT_FEED_FILTER: FeedFilterId = "unread-parents";
 
 const FEED_FILTER_IDS: ReadonlySet<string> = new Set(FEED_FILTERS.map((filter) => filter.id));
 
@@ -24,37 +23,23 @@ export interface FeedThread {
   parentThreadId: string | null;
 }
 
-/** Parents that have at least one visible, unarchived child in this snapshot. */
-export function parentIdsWithChildren(
-  threads: readonly Pick<FeedThread, "id" | "parentThreadId">[],
-): Set<string> {
-  const present = new Set(threads.map((thread) => thread.id));
-  const parents = new Set<string>();
-  for (const thread of threads) {
-    if (thread.parentThreadId !== null && present.has(thread.parentThreadId)) {
-      parents.add(thread.parentThreadId);
-    }
-  }
-  return parents;
+function isSubthread(thread: Pick<FeedThread, "parentThreadId">): boolean {
+  return thread.parentThreadId !== null;
 }
 
 export function matchesFeedFilter(
-  thread: Pick<FeedThread, "id" | "isUnread">,
+  thread: Pick<FeedThread, "isUnread" | "parentThreadId">,
   filter: FeedFilterId,
-  parents: ReadonlySet<string>,
 ): boolean {
-  const hasChildren = parents.has(thread.id);
   switch (filter) {
     case "all":
       return true;
-    case "unread-without-children":
-      return thread.isUnread && !hasChildren;
+    case "unread-parents":
+      return thread.isUnread && !isSubthread(thread);
     case "all-unread":
       return thread.isUnread;
-    case "all-without-children":
-      return !hasChildren;
-    case "all-with-children":
-      return hasChildren;
+    case "all-parents":
+      return !isSubthread(thread);
   }
 }
 
@@ -62,7 +47,7 @@ export function selectThreadsForFeed<T extends FeedThread>(
   threads: readonly T[],
   filter: FeedFilterId,
 ): T[] {
-  const visible = threads.filter((thread) => !thread.isHidden && !thread.isArchived);
-  const parents = parentIdsWithChildren(visible);
-  return visible.filter((thread) => matchesFeedFilter(thread, filter, parents));
+  return threads
+    .filter((thread) => !thread.isHidden && !thread.isArchived)
+    .filter((thread) => matchesFeedFilter(thread, filter));
 }

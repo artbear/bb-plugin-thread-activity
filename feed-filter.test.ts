@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_FEED_FILTER,
   FEED_FILTERS,
+  isFeedFilterId,
   matchesFeedFilter,
-  parentIdsWithChildren,
   selectThreadsForFeed,
   type FeedFilterId,
   type FeedThread,
@@ -22,37 +22,42 @@ function thread(id: string, overrides: Partial<FeedThread> = {}): FeedThread {
 }
 
 const cases: Record<FeedFilterId, string[]> = {
-  "all": ["unread-leaf", "read-leaf", "unread-parent", "read-parent", "unread-child", "read-child"],
-  "unread-without-children": ["unread-leaf", "unread-child"],
-  "all-unread": ["unread-leaf", "unread-parent", "unread-child"],
-  "all-without-children": ["unread-leaf", "read-leaf", "unread-child", "read-child"],
-  "all-with-children": ["unread-parent", "read-parent"],
+  "all": [
+    "unread-root",
+    "read-root",
+    "unread-root-with-child",
+    "unread-sub",
+    "unread-sub-with-child",
+    "read-sub",
+  ],
+  "unread-parents": ["unread-root", "unread-root-with-child"],
+  "all-unread": ["unread-root", "unread-root-with-child", "unread-sub", "unread-sub-with-child"],
+  "all-parents": ["unread-root", "read-root", "unread-root-with-child"],
 };
 
 describe("feed filter predicates", () => {
   const threads = [
-    thread("unread-leaf", { isUnread: true }),
-    thread("read-leaf"),
-    thread("unread-parent", { isUnread: true }),
-    thread("read-parent"),
-    thread("unread-child", { isUnread: true, parentThreadId: "unread-parent" }),
-    thread("read-child", { parentThreadId: "read-parent" }),
-    thread("hidden-child", { isHidden: true, parentThreadId: "read-leaf" }),
-    thread("archived-child", { isArchived: true, parentThreadId: "unread-leaf" }),
+    thread("unread-root", { isUnread: true }),
+    thread("read-root"),
+    thread("unread-root-with-child", { isUnread: true }),
+    thread("unread-sub", { isUnread: true, parentThreadId: "unread-root-with-child" }),
+    thread("unread-sub-with-child", { isUnread: true, parentThreadId: "read-root" }),
+    thread("read-sub", { parentThreadId: "unread-sub-with-child" }),
+    thread("hidden-root", { isHidden: true, isUnread: true }),
+    thread("archived-root", { isArchived: true, isUnread: true }),
   ];
   const visible = threads.filter((item) => !item.isHidden && !item.isArchived);
-  const parents = parentIdsWithChildren(visible);
 
-  it("lists все first without making it the default", () => {
+  it("lists the four labels and keeps the default off the first option", () => {
     expect(FEED_FILTERS.map((filter) => filter.label)).toEqual([
       "все",
-      "непрочитанные и без дочерних тредов",
+      "непрочитанные треды-родители",
       "все непрочитанные",
-      "все без дочерних",
-      "все с дочерними",
+      "все родители",
     ]);
-    expect(FEED_FILTERS[0].id).toBe("all");
-    expect(DEFAULT_FEED_FILTER).toBe("unread-without-children");
+    expect(FEED_FILTERS.map((filter) => filter.id)).not.toContain("all-with-children");
+    expect(isFeedFilterId("all-with-children")).toBe(false);
+    expect(DEFAULT_FEED_FILTER).toBe("unread-parents");
     expect(DEFAULT_FEED_FILTER).not.toBe(FEED_FILTERS[0].id);
   });
 
@@ -61,16 +66,21 @@ describe("feed filter predicates", () => {
     (_label, filter) => {
       expect(selectThreadsForFeed(threads, filter).map((item) => item.id)).toEqual(cases[filter]);
       for (const item of visible) {
-        expect(matchesFeedFilter(item, filter, parents)).toBe(cases[filter].includes(item.id));
+        expect(matchesFeedFilter(item, filter)).toBe(cases[filter].includes(item.id));
       }
     },
   );
 
-  it("ignores hidden and archived children when deciding who has children", () => {
-    expect(parents.has("read-leaf")).toBe(false);
-    expect(parents.has("unread-leaf")).toBe(false);
-    expect(parents.has("unread-parent")).toBe(true);
-    expect(parents.has("read-parent")).toBe(true);
+  it("treats a thread as a parent when it is not a subthread", () => {
+    const childlessRoot = visible.find((item) => item.id === "unread-root")!;
+    const subthreadWithChild = visible.find((item) => item.id === "unread-sub-with-child")!;
+    expect(childlessRoot.parentThreadId).toBeNull();
+    expect(matchesFeedFilter(childlessRoot, "unread-parents")).toBe(true);
+    expect(matchesFeedFilter(childlessRoot, "all-parents")).toBe(true);
+    expect(subthreadWithChild.parentThreadId).not.toBeNull();
+    expect(matchesFeedFilter(subthreadWithChild, "unread-parents")).toBe(false);
+    expect(matchesFeedFilter(subthreadWithChild, "all-parents")).toBe(false);
+    expect(matchesFeedFilter(subthreadWithChild, "all-unread")).toBe(true);
   });
 });
 
@@ -78,8 +88,12 @@ describe("feed filter session", () => {
   it("starts at the default and keeps a later choice until a new session", () => {
     const session = createFeedFilterSession();
     expect(session.get()).toBe(DEFAULT_FEED_FILTER);
-    expect(session.set("all-with-children")).toBe("all-with-children");
-    expect(session.get()).toBe("all-with-children");
+    expect(session.set("all-parents")).toBe("all-parents");
+    expect(session.get()).toBe("all-parents");
     expect(createFeedFilterSession().get()).toBe(DEFAULT_FEED_FILTER);
+  });
+
+  it("returns the default when the stored id was removed", () => {
+    expect(createFeedFilterSession("all-with-children").get()).toBe(DEFAULT_FEED_FILTER);
   });
 });

@@ -15,14 +15,14 @@ describe("feed filter RPC", () => {
     expect(await harness.behavior.callRpc("getFeedFilter", null)).toEqual({
       filter: DEFAULT_FEED_FILTER,
     });
-    expect(await harness.behavior.callRpc("setFeedFilter", { filter: "all-without-children" })).toEqual({
-      filter: "all-without-children",
+    expect(await harness.behavior.callRpc("setFeedFilter", { filter: "all-parents" })).toEqual({
+      filter: "all-parents",
     });
     expect(await harness.behavior.callRpc("getFeedFilter", null)).toEqual({
-      filter: "all-without-children",
+      filter: "all-parents",
     });
-    await expect(harness.behavior.callRpc("setFeedFilter", { filter: "everything" })).rejects.toThrow();
-    expect(feedFilterSession.get()).toBe("all-without-children");
+    await expect(harness.behavior.callRpc("setFeedFilter", { filter: "all-with-children" })).rejects.toThrow();
+    expect(feedFilterSession.get()).toBe("all-parents");
     await harness.lifecycle.dispose();
   });
 });

@@ -1,4 +1,4 @@
-import { DEFAULT_FEED_FILTER, type FeedFilterId } from "./feed-filter";
+import { DEFAULT_FEED_FILTER, isFeedFilterId, type FeedFilterId } from "./feed-filter";
 
 export interface FeedFilterSession {
   get(): FeedFilterId;
@@ -6,10 +6,12 @@ export interface FeedFilterSession {
 }
 
 /** In-process choice. A new server process starts at the default filter. */
-export function createFeedFilterSession(): FeedFilterSession {
-  let selected: FeedFilterId = DEFAULT_FEED_FILTER;
+export function createFeedFilterSession(initial: string = DEFAULT_FEED_FILTER): FeedFilterSession {
+  let selected = initial;
   return {
-    get: () => selected,
+    get() {
+      return isFeedFilterId(selected) ? selected : DEFAULT_FEED_FILTER;
+    },
     set(filter) {
       selected = filter;
       return selected;

@@ -11,8 +11,8 @@ const filterSchema = {
       return { issues: [{ message: "unknown feed filter" }] };
     },
     types: {
-      input: "unread-without-children" as FeedFilterId,
-      output: "unread-without-children" as FeedFilterId,
+      input: "unread-parents" as FeedFilterId,
+      output: "unread-parents" as FeedFilterId,
     },
   },
 };
@@ -37,8 +37,8 @@ const filterPayloadSchema = {
       return { value: { filter: parsed.value } };
     },
     types: {
-      input: { filter: "unread-without-children" as FeedFilterId },
-      output: { filter: "unread-without-children" as FeedFilterId },
+      input: { filter: "unread-parents" as FeedFilterId },
+      output: { filter: "unread-parents" as FeedFilterId },
     },
   },
 };
