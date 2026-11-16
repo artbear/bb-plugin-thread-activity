@@ -14,7 +14,7 @@ export function createFeedFilterSession(initial: string = DEFAULT_FEED_FILTER): 
     },
     set(filter) {
       selected = filter;
-      return selected;
+      return selected as FeedFilterId;
     },
   };
 }
