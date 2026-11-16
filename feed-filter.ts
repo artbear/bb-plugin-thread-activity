@@ -1,4 +1,5 @@
 export const FEED_FILTERS = [
+  { id: "all", label: "все" },
   { id: "unread-without-children", label: "непрочитанные и без дочерних тредов" },
   { id: "all-unread", label: "все непрочитанные" },
   { id: "all-without-children", label: "все без дочерних" },
@@ -7,7 +8,7 @@ export const FEED_FILTERS = [
 
 export type FeedFilterId = (typeof FEED_FILTERS)[number]["id"];
 
-export const DEFAULT_FEED_FILTER: FeedFilterId = FEED_FILTERS[0].id;
+export const DEFAULT_FEED_FILTER: FeedFilterId = "unread-without-children";
 
 const FEED_FILTER_IDS: ReadonlySet<string> = new Set(FEED_FILTERS.map((filter) => filter.id));
 
@@ -44,6 +45,8 @@ export function matchesFeedFilter(
 ): boolean {
   const hasChildren = parents.has(thread.id);
   switch (filter) {
+    case "all":
+      return true;
     case "unread-without-children":
       return thread.isUnread && !hasChildren;
     case "all-unread":

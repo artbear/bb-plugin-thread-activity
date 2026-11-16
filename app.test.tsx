@@ -68,7 +68,7 @@ describe("activity panel", () => {
     expect(view.getAllByRole("heading")).toHaveLength(2);
   });
 
-  it("offers the four filters, defaults to the first, and keeps the choice across opens", async () => {
+  it("offers the filters, keeps the default off the first option, and restores the choice", async () => {
     const threads = [
       thread("unread-leaf", "2026-10-23T12:00:00", { isUnread: true }),
       thread("read-leaf", "2026-10-23T11:00:00"),
@@ -84,12 +84,23 @@ describe("activity panel", () => {
     expect(view.getAllByRole("option").map((option) => option.textContent)).toEqual(
       FEED_FILTERS.map((filter) => filter.label),
     );
-    expect(select.value).toBe(DEFAULT_FEED_FILTER);
+    expect(select.options[0]?.textContent).toBe("все");
+    expect(select.value).toBe("unread-without-children");
+    expect(select.value).not.toBe(select.options[0]?.value);
     expect((await view.findAllByRole("link")).map((link) => link.getAttribute("href"))).toEqual([
       "/projects/project/threads/unread-leaf",
       "/projects/project/threads/unread-child",
     ]);
 
+    fireEvent.change(select, { target: { value: "all" } });
+    expect(view.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      "/projects/project/threads/unread-leaf",
+      "/projects/project/threads/read-leaf",
+      "/projects/project/threads/unread-parent",
+      "/projects/project/threads/read-parent",
+      "/projects/project/threads/unread-child",
+      "/projects/project/threads/read-child",
+    ]);
     fireEvent.change(select, { target: { value: "all-unread" } });
     expect(view.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       "/projects/project/threads/unread-leaf",

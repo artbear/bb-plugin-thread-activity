@@ -22,6 +22,7 @@ function thread(id: string, overrides: Partial<FeedThread> = {}): FeedThread {
 }
 
 const cases: Record<FeedFilterId, string[]> = {
+  "all": ["unread-leaf", "read-leaf", "unread-parent", "read-parent", "unread-child", "read-child"],
   "unread-without-children": ["unread-leaf", "unread-child"],
   "all-unread": ["unread-leaf", "unread-parent", "unread-child"],
   "all-without-children": ["unread-leaf", "read-leaf", "unread-child", "read-child"],
@@ -42,14 +43,17 @@ describe("feed filter predicates", () => {
   const visible = threads.filter((item) => !item.isHidden && !item.isArchived);
   const parents = parentIdsWithChildren(visible);
 
-  it("uses the first option as the default", () => {
+  it("lists все first without making it the default", () => {
     expect(FEED_FILTERS.map((filter) => filter.label)).toEqual([
+      "все",
       "непрочитанные и без дочерних тредов",
       "все непрочитанные",
       "все без дочерних",
       "все с дочерними",
     ]);
+    expect(FEED_FILTERS[0].id).toBe("all");
     expect(DEFAULT_FEED_FILTER).toBe("unread-without-children");
+    expect(DEFAULT_FEED_FILTER).not.toBe(FEED_FILTERS[0].id);
   });
 
   it.each(FEED_FILTERS.map((filter) => [filter.label, filter.id] as const))(
